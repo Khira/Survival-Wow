@@ -41,7 +41,6 @@
 #include <iostream>
 #include <fstream>
 #include <map>
-#include "GlobalEvents.h"
 
 #include "TargetedMovementGenerator.h"                      // for HandleNpcUnFollowCommand
 
@@ -841,7 +840,7 @@ bool ChatHandler::HandleGameObjectNearCommand(const char* args)
             if(!gInfo)
                 continue;
 
-            PSendSysMessage(LANG_GO_LIST_CHAT, guid, guid, gInfo->name, x, y, z, mapid);
+            PSendSysMessage(LANG_GO_LIST_CHAT, guid, entry, guid, gInfo->name, x, y, z, mapid);
 
             ++count;
         } while (result->NextRow());
@@ -3668,7 +3667,11 @@ bool ChatHandler::HandleModifyStandStateCommand(const char* args)
         return false;
 
     uint32 anim_id = atoi((char*)args);
-    m_session->GetPlayer( )->SetUInt32Value( UNIT_NPC_EMOTESTATE , anim_id );
+
+    if (!sEmotesStore.LookupEntry(anim_id))
+        return false;
+
+    m_session->GetPlayer()->HandleEmoteState(anim_id);
 
     return true;
 }
@@ -3998,7 +4001,7 @@ void ChatHandler::HandleLearnSkillRecipesHelper(Player* player,uint32 skill_id)
         if(!spellInfo || !SpellMgr::IsSpellValid(spellInfo,player,false))
             continue;
 
-        player->learnSpell(skillLine->spellId,false);
+        player->learnSpell(skillLine->spellId, false);
     }
 }
 
@@ -4093,7 +4096,7 @@ bool ChatHandler::HandleLearnAllRecipesCommand(const char* args)
     HandleLearnSkillRecipesHelper(target,targetSkillInfo->id);
 
     uint16 maxLevel = target->GetPureMaxSkillValue(targetSkillInfo->id);
-    target->SetSkill(targetSkillInfo->id, maxLevel, maxLevel);
+    target->SetSkill(targetSkillInfo->id, target->GetSkillStep(targetSkillInfo->id), maxLevel, maxLevel);
     PSendSysMessage(LANG_COMMAND_LEARN_ALL_RECIPES, name.c_str());
     return true;
 }
@@ -4205,7 +4208,7 @@ bool ChatHandler::LookupPlayerSearchCommand(QueryResult* result, int32 limit)
 /// Triggering corpses expire check in world
 bool ChatHandler::HandleServerCorpsesCommand(const char* /*args*/)
 {
-    CorpsesErase();
+    sObjectAccessor.RemoveOldCorpses();
     return true;
 }
 
